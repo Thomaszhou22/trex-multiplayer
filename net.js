@@ -1,0 +1,152 @@
+/* net.js — multiplayer layer for t-rex-runner (bypass observer)
+ * Reads the local Runner instance's score & running state, syncs them to a
+ * WebSocket relay, and renders a 2-4 player progress HUD. No game code edits. */
+(function () {
+  var WS_URL_DEFAULT = 'wss://YOUR-SERVER'; // replaced per deployment
+  var wsUrlInput = document.getElementById('mp-ws');
+  var roomInput = document.getElementById('mp-room-input');
+  var joinBtn = document.getElementById('mp-join');
+  var leaveBtn = document.getElementById('mp-leave');
+  var countEl = document.getElementById('mp-count');
+  var playersEl = document.getElementById('mp-players');
+  var statusEl = document.getElementById('mp-status');
+
+  var me = null;       // my player id (random)
+  var ws = null;
+  var room = null;
+  var players = {};    // id -> {name, score, alive, last}
+  var lastSent = 0;
+
+  // persist server URL
+  try {
+    var saved = localStorage.getItem('mp-ws-url');
+    if (saved) wsUrlInput.value = saved;
+  } catch (e) {}
+  // auto-fill from current origin over wss
+  if (!wsUrlInput.value) {
+    var guess = location.origin.replace(/^http/, 'ws');
+    if (guess.indexOf('http') !== 0) guess = WS_URL_DEFAULT;
+    wsUrlInput.value = guess;
+  }
+
+  function id() {
+    if (me) return me;
+    me = 'p' + Math.random().toString(36).slice(2, 8);
+    return me;
+  }
+
+  function send(obj) {
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
+  }
+
+  function myName() {
+    var n = null;
+    try { n = localStorage.getItem('mp-name'); } catch (e) {}
+    if (!n) {
+      n = 'P-' + Math.random().toString(36).slice(2, 5).toUpperCase();
+      try { localStorage.setItem('mp-name', n); } catch (e) {}
+    }
+    return n;
+  }
+
+  function connect() {
+    var url = wsUrlInput.value.trim();
+    if (!url) return;
+    try { localStorage.setItem('mp-ws-url', url); } catch (e) {}
+    room = roomInput.value.trim().toUpperCase() || 'LOBBY';
+    statusEl.textContent = 'Connecting ' + url + ' …';
+    try { ws = new WebSocket(url); } catch (e) { statusEl.textContent = 'Bad URL'; return; }
+
+    ws.onopen = function () {
+      send({ t: 'join', room: room, id: id(), name: myName() });
+      statusEl.textContent = 'Room ' + room + ' — connected';
+    };
+    ws.onclose = function () {
+      statusEl.textContent = 'Disconnected';
+      ws = null;
+    };
+    ws.onerror = function () { statusEl.textContent = 'Connection error'; };
+    ws.onmessage = function (ev) {
+      var m;
+      try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (m.t === 'state') {
+        players = m.players || {};
+        render();
+      }
+    };
+  }
+
+  joinBtn.onclick = function () {
+    if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+    connect();
+  };
+  leaveBtn.onclick = function () {
+    if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+    players = {}; render(); statusEl.textContent = 'Not connected';
+  };
+  roomInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') joinBtn.onclick();
+  });
+
+  // heartbeat + game state (bypass, no game-code edits)
+  // Sends every 500ms regardless of game state so the server never prunes
+  // a connected-but-idle player (waiting in lobby, not started yet, crashed).
+  setInterval(function () {
+    if (!ws || ws.readyState !== 1) return;
+    var now = Date.now();
+    if (now - lastSent < 400) return;
+    var score = 0, alive = true;
+    try {
+      var r = window.Runner && Runner.instance_;
+      if (r) {
+        if (r.distanceMeter) {
+          var raw = r.distanceMeter.getActualDistance(Math.ceil(r.distanceRan));
+          score = typeof raw === 'number' ? raw : 0;
+        }
+        if (r.crashed) alive = false;
+      }
+    } catch (e) {}
+    lastSent = now;
+    send({ t: 'update', room: room, id: id(), score: score, alive: alive });
+  }, 500);
+
+  // prune stale players (10s)
+  setInterval(function () {
+    var now = Date.now(); var dirty = false;
+    Object.keys(players).forEach(function (pid) {
+      if (players[pid] && now - (players[pid].last || 0) > 10000) {
+        delete players[pid]; dirty = true;
+      }
+    });
+    if (dirty) render();
+  }, 5000);
+
+  function render() {
+    var ids = Object.keys(players).sort(function (a, b) {
+      return (players[b].score || 0) - (players[a].score || 0);
+    });
+    countEl.textContent = ids.length + '/4' + (ids.length >= 4 ? ' (full)' : '');
+    var html = '';
+    var maxScore = 1;
+    ids.forEach(function (pid) {
+      var s = players[pid].score || 0;
+      if (s > maxScore) maxScore = s;
+    });
+    ids.slice(0, 4).forEach(function (pid) {
+      var p = players[pid];
+      var pct = Math.min(100, Math.round((p.score || 0) / maxScore * 100));
+      html += '<div class="mp-row' + (p.alive ? '' : ' dead') + (pid === me ? ' mp-me' : '') + '">'
+        + '<span class="mp-tag">' + escapeHtml(p.name || pid) + '</span>'
+        + '<div class="mp-bar-wrap"><div class="mp-bar" style="width:' + pct + '%"></div></div>'
+        + '<span class="mp-score">' + (p.score || 0) + '</span>'
+        + '</div>';
+    });
+    playersEl.innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+})();

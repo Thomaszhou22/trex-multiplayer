@@ -1,0 +1,13 @@
+{
+  "name": "trex-multiplayer",
+  "version": "1.0.0",
+  "description": "Multiplayer T-Rex runner: LAN or public WebSocket relay, 2-4 player live progress HUD",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
