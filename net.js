@@ -2,7 +2,7 @@
  * Reads the local Runner instance's score & running state, syncs them to a
  * WebSocket relay, and renders a 2-4 player progress HUD. No game code edits. */
 (function () {
-  var WS_URL_DEFAULT = 'wss://YOUR-SERVER'; // replaced per deployment
+  var WS_URL_DEFAULT = 'wss://trex-multiplayer.onrender.com'; // default public relay
   var wsUrlInput = document.getElementById('mp-ws');
   var roomInput = document.getElementById('mp-room-input');
   var joinBtn = document.getElementById('mp-join');
@@ -23,10 +23,10 @@
     if (saved) wsUrlInput.value = saved;
   } catch (e) {}
   // auto-fill from current origin over wss
+  // default: public relay baked in; override via ?server=wss://... or saved pref
   if (!wsUrlInput.value) {
-    var guess = location.origin.replace(/^http/, 'ws');
-    if (guess.indexOf('http') !== 0) guess = WS_URL_DEFAULT;
-    wsUrlInput.value = guess;
+    var q = new URLSearchParams(location.search).get('server');
+    wsUrlInput.value = q || WS_URL_DEFAULT;
   }
 
   function id() {
