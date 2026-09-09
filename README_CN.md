@@ -2,6 +2,8 @@
 
 **Chrome 小恐龙游戏，多人版：2-4 人同房间，实时进度条比拼。**
 
+**[▶ 立即开玩](https://thomaszhou22.github.io/trex-multiplayer/)**
+
 [English](./README.md) | [中文](./README_CN.md)
 
 ---

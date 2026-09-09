@@ -2,6 +2,8 @@
 
 **The Chrome dino game, multiplayer: 2-4 players, live progress bars, one room code.**
 
+**[▶ Play now](https://thomaszhou22.github.io/trex-multiplayer/)**
+
 [English](./README.md) | [中文](./README_CN.md)
 
 ---
