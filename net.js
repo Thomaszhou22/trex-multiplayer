@@ -21,12 +21,13 @@
   var players = {};    // id -> {name, score, alive, last}
   var lastSent = 0;
 
-  // persist server URL
+  // v2 storage key: clears the stale 'mp-ws-url' that may hold the old
+  // 'wss://YOUR-SERVER' default from the first release
   try {
-    var saved = localStorage.getItem('mp-ws-url');
+    localStorage.removeItem('mp-ws-url');
+    var saved = localStorage.getItem('mp-ws-url-v2');
     if (saved) wsUrlInput.value = saved;
   } catch (e) {}
-  // auto-fill from current origin over wss
   // default: public relay baked in; override via ?server=wss://... or saved pref
   if (!wsUrlInput.value) {
     var q = new URLSearchParams(location.search).get('server');
@@ -56,7 +57,7 @@
   function connect() {
     var url = wsUrlInput.value.trim();
     if (!url) return;
-    try { localStorage.setItem('mp-ws-url', url); } catch (e) {}
+    try { localStorage.setItem('mp-ws-url-v2', url); } catch (e) {}
     room = roomInput.value.trim().toUpperCase() || 'LOBBY';
     statusEl.textContent = 'Connecting ' + url + ' …';
     try { ws = new WebSocket(url); } catch (e) { statusEl.textContent = 'Bad URL'; return; }
