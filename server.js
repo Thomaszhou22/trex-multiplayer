@@ -8,7 +8,7 @@ const http = require('http');
 
 const PORT = process.env.PORT || 8080;
 const MAX_PLAYERS = 4;
-const STALE_MS = 10000;
+const STALE_MS = 30000; // prune by missed pings, not by update silence
 
 const server = http.createServer((req, res) => {
   // health check + landing
@@ -44,7 +44,7 @@ function prune(roomMap) {
   const now = Date.now();
   let dirty = false;
   for (const [id, p] of roomMap) {
-    if (now - p.last > STALE_MS) {
+    if (now - p.lastPong > STALE_MS) {
       roomMap.delete(id);
       try { p.ws.close(); } catch (e) {}
       dirty = true;
@@ -80,7 +80,13 @@ wss.on('connection', (ws) => {
       myName = String(m.name || 'P').slice(0, 12);
       roomMap.set(myId, {
         ws, name: myName,
-        score: 0, alive: true, last: Date.now(),
+        score: 0, alive: true, last: Date.now(), lastPong: Date.now(),
+      });
+      // protocol-level liveness: browsers auto-pong even in throttled
+      // background tabs, unlike JS timers which Chrome may freeze
+      ws.on('pong', () => {
+        const p = joinedRoom && joinedRoom.get(myId);
+        if (p) { p.lastPong = Date.now(); p.last = Date.now(); }
       });
       broadcast(roomMap);
     } else if (m.t === 'update' && joinedRoom && myId) {
@@ -112,11 +118,18 @@ wss.on('connection', (ws) => {
   });
 });
 
-// periodic prune of all rooms
+// periodic ping + prune of all rooms (ping keeps background-tab
+// players alive at the protocol level; prune only drops dead sockets)
 setInterval(() => {
-  let dirty = false;
+  for (const [, rm] of rooms) {
+    for (const [, p] of rm) {
+      try { if (p.ws.readyState === 1) p.ws.ping(); } catch (e) {}
+    }
+  }
+}, 5000);
+setInterval(() => {
   for (const [name, rm] of rooms) {
-    if (prune(rm)) dirty = true;
+    prune(rm);
     if (rm.size === 0) rooms.delete(name);
   }
 }, 10000);
