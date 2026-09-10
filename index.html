@@ -140,5 +140,15 @@
 
   <script src="game.js"></script>
   <script src="net.js"></script>
+  <script>
+    // original t-rex-runner bootstrap: Space dismisses the start overlay
+    document.onkeydown = function (evt) {
+      evt = evt || window.event;
+      if (evt.keyCode == 32) {
+        var box = document.getElementById("messageBox");
+        if (box) box.style.visibility = "hidden";
+      }
+    };
+  </script>
 </body>
 </html>

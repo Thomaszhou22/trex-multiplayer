@@ -91,6 +91,7 @@
   }
 
   joinBtn.onclick = function () {
+    this.blur();
     if (ws) { try { ws.close(); } catch (e) {} ws = null; }
     connect();
   };
@@ -100,6 +101,7 @@
     var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     for (var i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
     roomInput.value = code;
+    this.blur();
     joinBtn.onclick();
   };
   copyBtn.onclick = function () {
@@ -115,6 +117,7 @@
     setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1500);
   };
   leaveBtn.onclick = function () {
+    this.blur();
     if (ws) { try { ws.close(); } catch (e) {} ws = null; }
     players = {}; render(); statusEl.textContent = 'Not connected';
     inviteEl.style.display = 'none';
