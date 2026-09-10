@@ -6,7 +6,11 @@
   var wsUrlInput = document.getElementById('mp-ws');
   var roomInput = document.getElementById('mp-room-input');
   var joinBtn = document.getElementById('mp-join');
+  var createBtn = document.getElementById('mp-create');
   var leaveBtn = document.getElementById('mp-leave');
+  var inviteEl = document.getElementById('mp-invite');
+  var inviteLinkEl = document.getElementById('mp-invite-link');
+  var copyBtn = document.getElementById('mp-copy');
   var countEl = document.getElementById('mp-count');
   var playersEl = document.getElementById('mp-players');
   var statusEl = document.getElementById('mp-status');
@@ -60,6 +64,12 @@
     ws.onopen = function () {
       send({ t: 'join', room: room, id: id(), name: myName() });
       statusEl.textContent = 'Room ' + room + ' — connected';
+      // invite link: current server + room, so friends land pre-filled
+      var base = location.href.split('?')[0];
+      var srv = encodeURIComponent(wsUrlInput.value.trim());
+      inviteLinkEl.href = base + '?room=' + encodeURIComponent(room) + '&server=' + srv;
+      inviteLinkEl.textContent = inviteLinkEl.href;
+      inviteEl.style.display = 'block';
     };
     ws.onclose = function () {
       statusEl.textContent = 'Disconnected';
@@ -80,10 +90,38 @@
     if (ws) { try { ws.close(); } catch (e) {} ws = null; }
     connect();
   };
+  createBtn.onclick = function () {
+    // random 4-char code, then join it
+    var code = '';
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    for (var i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    roomInput.value = code;
+    joinBtn.onclick();
+  };
+  copyBtn.onclick = function () {
+    var url = inviteLinkEl.href;
+    if (navigator.clipboard) navigator.clipboard.writeText(url);
+    else {
+      var ta = document.createElement('textarea'); ta.value = url;
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+    copyBtn.textContent = 'Copied!';
+    setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1500);
+  };
   leaveBtn.onclick = function () {
     if (ws) { try { ws.close(); } catch (e) {} ws = null; }
     players = {}; render(); statusEl.textContent = 'Not connected';
+    inviteEl.style.display = 'none';
   };
+  // pre-fill room & auto-join from URL (?room=CODE&server=wss://...)
+  (function () {
+    var q = new URLSearchParams(location.search);
+    var r = q.get('room');
+    if (r) roomInput.value = r.toUpperCase().slice(0, 8);
+    if (r) joinBtn.onclick();
+  })();
   roomInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') joinBtn.onclick();
   });

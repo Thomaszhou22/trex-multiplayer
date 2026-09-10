@@ -33,10 +33,14 @@
 <body id="t" class="offline">
   <div id="mp-hud">
     <div id="mp-room">
-      Room <input id="mp-room-input" placeholder="ROOM" maxlength="8">
+      Room <input id="mp-room-input" placeholder="CODE" maxlength="8">
+      <button id="mp-create">Create</button>
       <button id="mp-join">Join</button>
       <button id="mp-leave">Leave</button>
       <span id="mp-count"></span>
+    </div>
+    <div id="mp-invite" style="display:none; margin-top:4px; font-size:11px; word-break:break-all">
+      Invite link: <a id="mp-invite-link" href="#"></a> <button id="mp-copy">Copy</button>
     </div>
     <div id="mp-players"></div>
     <div id="mp-status">Not connected</div>
