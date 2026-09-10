@@ -14,6 +14,7 @@
   var countEl = document.getElementById('mp-count');
   var playersEl = document.getElementById('mp-players');
   var statusEl = document.getElementById('mp-status');
+  var liveDot = document.getElementById('mp-live-dot');
 
   var me = null;       // my player id (random)
   var ws = null;
@@ -65,6 +66,7 @@
     ws.onopen = function () {
       send({ t: 'join', room: room, id: id(), name: myName() });
       statusEl.textContent = 'Room ' + room + ' — connected';
+      if (liveDot) liveDot.className = 'mp-dot';
       // invite link: current server + room, so friends land pre-filled
       var base = location.href.split('?')[0];
       var srv = encodeURIComponent(wsUrlInput.value.trim());
@@ -74,6 +76,7 @@
     };
     ws.onclose = function () {
       statusEl.textContent = 'Disconnected';
+      if (liveDot) liveDot.className = 'mp-dot off';
       ws = null;
     };
     ws.onerror = function () { statusEl.textContent = 'Connection error'; };
@@ -174,8 +177,8 @@
     ids.slice(0, 4).forEach(function (pid) {
       var p = players[pid];
       var pct = Math.min(100, Math.round((p.score || 0) / maxScore * 100));
-      html += '<div class="mp-row' + (p.alive ? '' : ' dead') + (pid === me ? ' mp-me' : '') + '">'
-        + '<span class="mp-tag">' + escapeHtml(p.name || pid) + '</span>'
+      html += '<div class="mp-row' + (p.alive ? '' : ' dead') + '">'
+        + '<span class="mp-tag">' + escapeHtml(p.name || pid) + (pid === me ? ' <span class="me">you</span>' : '') + '</span>'
         + '<div class="mp-bar-wrap"><div class="mp-bar" style="width:' + pct + '%"></div></div>'
         + '<span class="mp-score">' + (p.score || 0) + '</span>'
         + '</div>';
