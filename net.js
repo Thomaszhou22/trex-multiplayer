@@ -15,6 +15,10 @@
   var playersEl = document.getElementById('mp-players');
   var statusEl = document.getElementById('mp-status');
   var liveDot = document.getElementById('mp-live-dot');
+  var readyBtn = document.getElementById('mp-ready');
+  var cdEl = document.getElementById('mp-countdown');
+  var cdNum = document.getElementById('mp-countdown-num');
+  var myReady = false;
 
   var me = null;       // my player id (random)
   var ws = null;
@@ -86,6 +90,8 @@
       if (m.t === 'state') {
         players = m.players || {};
         render();
+      } else if (m.t === 'countdown') {
+        runCountdown();
       }
     };
   }
@@ -103,6 +109,15 @@
     roomInput.value = code;
     this.blur();
     joinBtn.onclick();
+  };
+  readyBtn.onclick = function () {
+    this.blur();
+    if (!ws || ws.readyState !== 1) { statusEl.textContent = 'Join a room first'; return; }
+    myReady = !myReady;
+    readyBtn.textContent = myReady ? 'Cancel' : 'Ready';
+    readyBtn.style.background = myReady ? 'var(--primary)' : 'var(--secondary)';
+    readyBtn.style.color = myReady ? 'var(--primary-foreground)' : 'var(--secondary-foreground)';
+    send({ t: 'ready', room: room, id: id(), ready: myReady });
   };
   copyBtn.onclick = function () {
     var url = inviteLinkEl.href;
@@ -166,6 +181,47 @@
     if (dirty) render();
   }, 5000);
 
+  function runCountdown() {
+    // reset ready flag locally
+    myReady = false;
+    readyBtn.textContent = 'Ready';
+    readyBtn.style.background = 'var(--secondary)';
+    readyBtn.style.color = 'var(--secondary-foreground)';
+    // hide start overlay so the canvas is visible
+    var box = document.getElementById('messageBox');
+    if (box) box.style.visibility = 'hidden';
+    var r = window.Runner && Runner.instance_;
+    if (r && r.crashed) { try { r.restart(); } catch (e) {} }
+    var n = 3;
+    cdEl.style.display = 'flex';
+    cdNum.textContent = n;
+    var iv = setInterval(function () {
+      n--;
+      if (n <= 0) {
+        clearInterval(iv);
+        cdEl.style.display = 'none';
+        startGame();
+      } else {
+        cdNum.textContent = n;
+      }
+    }, 1000);
+  }
+
+  function startGame() {
+    var r = window.Runner && Runner.instance_;
+    if (!r) return;
+    try {
+      if (!r.playing && !r.crashed) {
+        // programmatic start, mirrors onKeyDown's start path
+        r.loadSounds();
+        r.playing = true;
+        r.update();
+      } else if (r.crashed) {
+        r.restart();
+      }
+    } catch (e) {}
+  }
+
   function render() {
     var ids = Object.keys(players).sort(function (a, b) {
       return (players[b].score || 0) - (players[a].score || 0);
@@ -181,7 +237,7 @@
       var p = players[pid];
       var pct = Math.min(100, Math.round((p.score || 0) / maxScore * 100));
       html += '<div class="mp-row' + (p.alive ? '' : ' dead') + '">'
-        + '<span class="mp-tag">' + escapeHtml(p.name || pid) + (pid === me ? ' <span class="me">you</span>' : '') + '</span>'
+        + '<span class="mp-tag">' + escapeHtml(p.name || pid) + (p.ready ? ' ✓' : '') + (pid === me ? ' <span class="me">you</span>' : '') + '</span>'
         + '<div class="mp-bar-wrap"><div class="mp-bar" style="width:' + pct + '%"></div></div>'
         + '<span class="mp-score">' + (p.score || 0) + '</span>'
         + '</div>';

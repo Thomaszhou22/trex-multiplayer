@@ -28,7 +28,7 @@ const rooms = new Map(); // room -> Map(id -> {ws, name, score, alive, last})
 function stateMessage(roomMap) {
   const players = {};
   for (const [id, p] of roomMap) {
-    players[id] = { name: p.name, score: p.score, alive: p.alive, last: p.last };
+    players[id] = { name: p.name, score: p.score, alive: p.alive, ready: !!p.ready, last: p.last };
   }
   return JSON.stringify({ t: 'state', players });
 }
@@ -80,7 +80,7 @@ wss.on('connection', (ws) => {
       myName = String(m.name || 'P').slice(0, 12);
       roomMap.set(myId, {
         ws, name: myName,
-        score: 0, alive: true, last: Date.now(), lastPong: Date.now(),
+        score: 0, alive: true, ready: false, last: Date.now(), lastPong: Date.now(),
       });
       // protocol-level liveness: browsers auto-pong even in throttled
       // background tabs, unlike JS timers which Chrome may freeze
@@ -89,13 +89,29 @@ wss.on('connection', (ws) => {
         if (p) { p.lastPong = Date.now(); p.last = Date.now(); }
       });
       broadcast(roomMap);
+    } else if (m.t === 'ready' && joinedRoom && myId) {
+      const p = joinedRoom.get(myId);
+      if (!p) return;
+      p.ready = m.ready === true;
+      p.last = Date.now();
+      broadcast(joinedRoom);
+      // all players ready -> synchronized countdown, then reset ready flags
+      let allReady = joinedRoom.size >= 1;
+      for (const [, q] of joinedRoom) if (!q.ready) { allReady = false; break; }
+      if (allReady) {
+        for (const [, q] of joinedRoom) q.ready = false;
+        const msg = JSON.stringify({ t: 'countdown' });
+        for (const [, q] of joinedRoom) {
+          if (q.ws.readyState === 1) q.ws.send(msg);
+        }
+      }
     } else if (m.t === 'update' && joinedRoom && myId) {
       let p = joinedRoom.get(myId);
       if (!p) {
         // Heartbeat resumed after background-tab throttling or a missed
         // prune: auto-rejoin instead of staying invisible forever.
         if (joinedRoom.size >= MAX_PLAYERS) return;
-        p = { ws, name: myName, score: 0, alive: true, last: Date.now() };
+        p = { ws, name: myName, score: 0, alive: true, ready: false, last: Date.now() };
         joinedRoom.set(myId, p);
       }
       p.score = Number(m.score) || 0;

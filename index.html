@@ -110,6 +110,7 @@
       <button id="mp-create">Create</button>
       <button id="mp-join">Join</button>
       <button id="mp-leave">Leave</button>
+      <button id="mp-ready">Ready</button>
       <span id="mp-count"></span>
     </div>
     <div id="mp-invite" style="display:none; margin-top:4px; font-size:11px; word-break:break-all">
@@ -120,6 +121,11 @@
     <div style="margin-top:4px"><input id="mp-ws" placeholder="wss://your-ws-server"></div>
   </div>
 
+  <div id="mp-countdown" style="display:none; position:fixed; inset:0; z-index:9998;
+       display:none; align-items:center; justify-content:center; pointer-events:none;">
+    <span id="mp-countdown-num" style="font-family:-apple-system,sans-serif; font-size:120px; font-weight:800;
+      color:#171717; text-shadow:0 4px 24px rgba(0,0,0,.25);"></span>
+  </div>
   <div id="messageBox" class="sendmessage">
     <h1 style="text-align: center;font-family: 'Open Sans', sans-serif;">Press Space to start</h1>
   </div>
